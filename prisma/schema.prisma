@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MODELO DE USUARIO
+// ============================================
+model Usuario {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  passwordHash      String
+  
+  // Información Personal
+  nombreCompleto    String
+  telefono          String
+  fotoPerfil        String?
+  
+  // Documentación
+  tipoDocumento     String   // "CC", "CE", "Pasaporte"
+  numeroDocumento   String   @unique
+  
+  // Ubicación
+  ciudad            String
+  direccion         String
+  
+  // Información del Vehículo
+  tipoVehiculo      String   // "carro", "moto", "camioneta"
+  placaVehiculo     String   @unique
+  cuidadoEspecial   String?  // Indicaciones especiales del vehículo
+  
+  // Timestamps
+  creadoEn          DateTime @default(now())
+  actualizadoEn     DateTime @updatedAt
+  
+  // Relaciones
+  reservaciones     Reservacion[]
+  metodosPago       MetodoPago[]
+  calificaciones    Calificacion[]
+  notificaciones    Notificacion[]
+  
+  @@map("usuarios")
+}
+
+// ============================================
+// MODELO DE SERVICIO
+// ============================================
+model Servicio {
+  id                String   @id @default(uuid())
+  nombre            String
+  descripcion       String
+  precio            Decimal  @db.Decimal(10, 2)
+  duracionMinutos   Int
+  imagenUrl         String?
+  activo            Boolean  @default(true)
+  
+  // Timestamps
+  creadoEn          DateTime @default(now())
+  actualizadoEn     DateTime @updatedAt
+  
+  // Relaciones
+  reservaciones     Reservacion[]
+  
+  @@map("servicios")
+}
+
+// ============================================
+// MODELO DE TRABAJADOR
+// ============================================
+model Trabajador {
+  id                String   @id @default(uuid())
+  nombreCompleto    String
+  telefono          String
+  fotoPerfil        String?
+  calificacionPromedio Decimal? @db.Decimal(3, 2)
+  activo            Boolean  @default(true)
+  
+  // Horarios Base
+  horarioLunes      Json?    // { inicio: "08:00", fin: "18:00" } o null si no trabaja
+  horarioMartes     Json?
+  horarioMiercoles  Json?
+  horarioJueves     Json?
+  horarioViernes    Json?
+  horarioSabado     Json?
+  horarioDomingo    Json?
+  
+  // Timestamps
+  creadoEn          DateTime @default(now())
+  actualizadoEn     DateTime @updatedAt
+  
+  // Relaciones
+  reservaciones     Reservacion[]
+  bloqueosHorario   BloqueoHorario[]
+  calificaciones    Calificacion[]
+  
+  @@map("trabajadores")
+}
+
+// ============================================
+// MODELO DE BLOQUEO DE HORARIO
+// ============================================
+model BloqueoHorario {
+  id                String     @id @default(uuid())
+  trabajadorId      String
+  trabajador        Trabajador @relation(fields: [trabajadorId], references: [id], onDelete: Cascade)
+  
+  fechaInicio       DateTime
+  fechaFin          DateTime
+  motivo            String?
+  
+  creadoEn          DateTime   @default(now())
+  
+  @@map("bloqueos_horario")
+}
+
+// ============================================
+// MODELO DE RESERVACIÓN
+// ============================================
+model Reservacion {
+  id                String     @id @default(uuid())
+  
+  // Relaciones
+  usuarioId         String
+  usuario           Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  servicioId        String
+  servicio          Servicio   @relation(fields: [servicioId], references: [id])
+  
+  trabajadorId      String?
+  trabajador        Trabajador? @relation(fields: [trabajadorId], references: [id])
+  
+  // Información de la Reservación
+  fechaHoraInicio   DateTime
+  fechaHoraFin      DateTime
+  direccionServicio String
+  
+  // Estados: "pending", "confirmed", "in_progress", "completed", "cancelled"
+  estado            String     @default("pending")
+  
+  // Precio final (puede diferir del precio del servicio por promociones)
+  precioFinal       Decimal    @db.Decimal(10, 2)
+  
+  // Notas
+  notasCliente      String?
+  notasTrabajador   String?
+  motivoCancelacion String?
+  
+  // Timestamps
+  creadoEn          DateTime   @default(now())
+  actualizadoEn     DateTime   @updatedAt
+  canceladoEn       DateTime?
+  completadoEn      DateTime?
+  
+  // Relaciones
+  calificacion      Calificacion?
+  
+  @@map("reservaciones")
+}
+
+// ============================================
+// MODELO DE MÉTODO DE PAGO
+// ============================================
+model MetodoPago {
+  id                String   @id @default(uuid())
+  usuarioId         String
+  usuario           Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  // Tipo: "tarjeta_credito", "tarjeta_debito", "pse", "efectivo"
+  tipo              String
+  
+  // Para tarjetas
+  ultimos4Digitos   String?
+  nombreTitular     String?
+  fechaExpiracion   String?  // "MM/YY"
+  marca             String?  // "Visa", "Mastercard", etc.
+  
+  esPrincipal       Boolean  @default(false)
+  activo            Boolean  @default(true)
+  
+  // Timestamps
+  creadoEn          DateTime @default(now())
+  actualizadoEn     DateTime @updatedAt
+  
+  @@map("metodos_pago")
+}
+
+// ============================================
+// MODELO DE CALIFICACIÓN
+// ============================================
+model Calificacion {
+  id                String      @id @default(uuid())
+  
+  // Relaciones
+  usuarioId         String
+  usuario           Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  reservacionId     String      @unique
+  reservacion       Reservacion @relation(fields: [reservacionId], references: [id], onDelete: Cascade)
+  
+  trabajadorId      String?
+  trabajador        Trabajador? @relation(fields: [trabajadorId], references: [id])
+  
+  // Calificaciones (1-5 estrellas)
+  calificacionServicio   Int      // Obligatorio
+  calificacionTrabajador Int?     // Opcional
+  
+  // Comentarios
+  comentarioServicio     String?
+  comentarioTrabajador   String?
+  
+  // Timestamps
+  creadoEn          DateTime @default(now())
+  
+  @@map("calificaciones")
+}
+
+// ============================================
+// MODELO DE NOTIFICACIÓN
+// ============================================
+model Notificacion {
+  id                String   @id @default(uuid())
+  usuarioId         String
+  usuario           Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  titulo            String
+  mensaje           String
+  tipo              String   // "reservacion", "calificacion", "promocion", "sistema"
+  leida             Boolean  @default(false)
+  
+  // Metadata adicional (JSON)
+  datos             Json?    // { reservacionId: "...", etc. }
+  
+  // Timestamps
+  creadoEn          DateTime @default(now())
+  
+  @@map("notificaciones")
+}
+
+// ============================================
+// MODELO DE REFRESH TOKEN
+// ============================================
+model RefreshToken {
+  id                String   @id @default(uuid())
+  usuarioId         String
+  token             String   @unique
+  expiraEn          DateTime
+  revocado          Boolean  @default(false)
+  
+  creadoEn          DateTime @default(now())
+  
+  @@map("refresh_tokens")
+  @@index([usuarioId])
+  @@index([token])
+}

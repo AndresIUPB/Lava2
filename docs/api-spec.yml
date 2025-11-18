@@ -1,0 +1,1437 @@
+openapi: 3.0.3
+info:
+  title: LAVA 2 API
+  description: API REST para aplicación de lavado de vehículos a domicilio en Colombia
+  version: 1.0.0
+  contact:
+    name: Equipo LAVA 2
+    email: soporte@lava2.com
+  license:
+    name: Propiedad Privada
+    url: https://lava2.com
+
+servers:
+  - url: http://localhost:3000/api
+    description: Servidor de desarrollo
+  - url: https://api.lava2.com/api
+    description: Servidor de producción
+
+tags:
+  - name: Autenticación
+    description: Endpoints para registro, login, refresh token
+  - name: Usuario
+    description: Gestión de perfil de usuario
+  - name: Servicio
+    description: Catálogo de servicios de lavado
+  - name: Trabajador
+    description: Información y búsqueda de trabajadores
+  - name: Trabajador Stats
+    description: Estadísticas y ranking de trabajadores
+  - name: Reservación
+    description: Crear, listar, cancelar reservaciones
+  - name: Método de Pago
+    description: Gestión de métodos de pago del usuario
+  - name: Calificación
+    description: Sistema de ratings para servicios y trabajadores
+  - name: Historial
+    description: Estadísticas e historial de reservaciones
+  - name: Notificación
+    description: Gestión de notificaciones del usuario
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: accessToken
+      description: JWT token almacenado en HTTP-Only cookie
+
+  schemas:
+    # Entidades principales
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        nombreCompleto:
+          type: string
+        telefono:
+          type: string
+          pattern: '^\+57[0-9]{10}$'
+        fotoPerfil:
+          type: string
+          nullable: true
+          description: URL o ruta al archivo de foto
+        tipoDocumento:
+          type: string
+          enum: [CC, CE, Pasaporte]
+        numeroDocumento:
+          type: string
+        ciudad:
+          type: string
+        direccion:
+          type: string
+        tipoVehiculo:
+          type: string
+          enum: [carro, moto, camioneta]
+        placaVehiculo:
+          type: string
+          pattern: '^[A-Z]{3}\d{3}$'
+          example: "ABC123"
+        cuidadoEspecial:
+          type: string
+          nullable: true
+          description: Indicaciones especiales para el vehículo
+        creadoEn:
+          type: string
+          format: date-time
+        actualizadoEn:
+          type: string
+          format: date-time
+
+    Servicio:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+          example: "Lavado Estándar"
+        descripcion:
+          type: string
+        precio:
+          type: number
+          format: decimal
+          example: 50000
+        duracionMinutos:
+          type: integer
+          example: 60
+        imagenUrl:
+          type: string
+          nullable: true
+        activo:
+          type: boolean
+        creadoEn:
+          type: string
+          format: date-time
+
+    Trabajador:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombreCompleto:
+          type: string
+        telefono:
+          type: string
+        fotoPerfil:
+          type: string
+          nullable: true
+        calificacionPromedio:
+          type: number
+          format: decimal
+          nullable: true
+          example: 4.75
+        activo:
+          type: boolean
+        horarioLunes:
+          type: object
+          nullable: true
+          properties:
+            inicio:
+              type: string
+              example: "08:00"
+            fin:
+              type: string
+              example: "18:00"
+        creadoEn:
+          type: string
+          format: date-time
+
+    Reservacion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuarioId:
+          type: string
+          format: uuid
+        servicioId:
+          type: string
+          format: uuid
+        trabajadorId:
+          type: string
+          format: uuid
+          nullable: true
+        fechaHoraInicio:
+          type: string
+          format: date-time
+        fechaHoraFin:
+          type: string
+          format: date-time
+        direccionServicio:
+          type: string
+        estado:
+          type: string
+          enum: [pending, confirmed, in_progress, completed, cancelled]
+          example: "confirmed"
+        precioFinal:
+          type: number
+          format: decimal
+        notasCliente:
+          type: string
+          nullable: true
+        notasTrabajador:
+          type: string
+          nullable: true
+        motivoCancelacion:
+          type: string
+          nullable: true
+        creadoEn:
+          type: string
+          format: date-time
+        actualizadoEn:
+          type: string
+          format: date-time
+        canceladoEn:
+          type: string
+          format: date-time
+          nullable: true
+        completadoEn:
+          type: string
+          format: date-time
+          nullable: true
+
+    MetodoPago:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuarioId:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+          enum: [tarjeta_credito, tarjeta_debito, pse, efectivo]
+        ultimos4Digitos:
+          type: string
+          nullable: true
+          example: "1234"
+        nombreTitular:
+          type: string
+          nullable: true
+        fechaExpiracion:
+          type: string
+          nullable: true
+          example: "12/25"
+        marca:
+          type: string
+          nullable: true
+          enum: [Visa, Mastercard, AmericanExpress, Diners]
+        esPrincipal:
+          type: boolean
+        activo:
+          type: boolean
+        creadoEn:
+          type: string
+          format: date-time
+
+    Calificacion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuarioId:
+          type: string
+          format: uuid
+        reservacionId:
+          type: string
+          format: uuid
+        trabajadorId:
+          type: string
+          format: uuid
+          nullable: true
+        calificacionServicio:
+          type: integer
+          minimum: 1
+          maximum: 5
+        calificacionTrabajador:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        comentarioServicio:
+          type: string
+          nullable: true
+        comentarioTrabajador:
+          type: string
+          nullable: true
+        creadoEn:
+          type: string
+          format: date-time
+
+    Notificacion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuarioId:
+          type: string
+          format: uuid
+        titulo:
+          type: string
+        mensaje:
+          type: string
+        tipo:
+          type: string
+          enum: [reservacion, calificacion, promocion, sistema]
+        leida:
+          type: boolean
+        datos:
+          type: object
+          nullable: true
+          description: JSON metadata adicional
+        creadoEn:
+          type: string
+          format: date-time
+
+    EstadisticasTrabajador:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nombreCompleto:
+          type: string
+        telefono:
+          type: string
+        fotoPerfil:
+          type: string
+          nullable: true
+        totalReservaciones:
+          type: integer
+        totalReservacionesCompletadas:
+          type: integer
+        totalReservacionesCanceladas:
+          type: integer
+        tazaCompletacion:
+          type: number
+          format: decimal
+          description: Porcentaje de completación (0-100)
+        calificacionPromedioServicio:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 5
+        calificacionPromedioTrabajador:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 5
+        totalCalificaciones:
+          type: integer
+        gananciaTotal:
+          type: number
+          format: decimal
+        gananciaPromedioPorServicio:
+          type: number
+          format: decimal
+        periodoInicio:
+          type: string
+          format: date-time
+        periodoFin:
+          type: string
+          format: date-time
+
+    ResumenMensual:
+      type: object
+      properties:
+        mes:
+          type: integer
+          minimum: 1
+          maximum: 12
+        año:
+          type: integer
+        reservacionesCompletadas:
+          type: integer
+        ganancias:
+          type: number
+          format: decimal
+        calificacionPromedio:
+          type: number
+          format: decimal
+
+    # DTOs y Response types
+    RespuestaExito:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        mensaje:
+          type: string
+          example: "Operación exitosa"
+        data:
+          type: object
+
+    RespuestaError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        mensaje:
+          type: string
+          example: "Error de validación"
+        error:
+          type: object
+          properties:
+            codigo:
+              type: integer
+              example: 400
+            mensaje:
+              type: string
+
+    PaginacionMeta:
+      type: object
+      properties:
+        paginaActual:
+          type: integer
+          example: 1
+        totalPaginas:
+          type: integer
+          example: 5
+        totalResultados:
+          type: integer
+          example: 97
+        resultadosPorPagina:
+          type: integer
+          example: 20
+
+paths:
+  # ==================== AUTENTICACIÓN ====================
+  /auth/registro:
+    post:
+      tags: [Autenticación]
+      summary: Registrar nuevo usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - nombreCompleto
+                - telefono
+                - tipoDocumento
+                - numeroDocumento
+                - ciudad
+                - direccion
+                - tipoVehiculo
+                - placaVehiculo
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                nombreCompleto:
+                  type: string
+                  minLength: 5
+                telefono:
+                  type: string
+                  pattern: '^\+57[0-9]{10}$'
+                tipoDocumento:
+                  type: string
+                  enum: [CC, CE, Pasaporte]
+                numeroDocumento:
+                  type: string
+                ciudad:
+                  type: string
+                direccion:
+                  type: string
+                  minLength: 10
+                tipoVehiculo:
+                  type: string
+                  enum: [carro, moto, camioneta]
+                placaVehiculo:
+                  type: string
+                  pattern: '^[A-Z]{3}\d{3}$'
+                cuidadoEspecial:
+                  type: string
+                  nullable: true
+      responses:
+        "201":
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Usuario"
+        "400":
+          description: Error de validación o usuario ya existe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaError"
+
+  /auth/login:
+    post:
+      tags: [Autenticación]
+      summary: Iniciar sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login exitoso
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: "accessToken=...eyJhbGciOiJIUzI1NiI...; HttpOnly; Secure; Path=/"
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          usuario:
+                            $ref: "#/components/schemas/Usuario"
+        "401":
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RespuestaError"
+
+  /auth/refresh:
+    post:
+      tags: [Autenticación]
+      summary: Renovar access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        "200":
+          description: Token renovado exitosamente
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        "401":
+          description: Refresh token inválido o expirado
+
+  /auth/logout:
+    post:
+      tags: [Autenticación]
+      summary: Cerrar sesión
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Sesión cerrada
+
+  # ==================== USUARIO ====================
+  /usuarios/perfil:
+    get:
+      tags: [Usuario]
+      summary: Obtener perfil del usuario autenticado
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Perfil obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Usuario"
+        "401":
+          description: No autenticado
+
+    put:
+      tags: [Usuario]
+      summary: Actualizar perfil
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombreCompleto:
+                  type: string
+                telefono:
+                  type: string
+                ciudad:
+                  type: string
+                direccion:
+                  type: string
+                tipoVehiculo:
+                  type: string
+                placaVehiculo:
+                  type: string
+                cuidadoEspecial:
+                  type: string
+      responses:
+        "200":
+          description: Perfil actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Usuario"
+
+  /usuarios/foto-perfil:
+    post:
+      tags: [Usuario]
+      summary: Subir foto de perfil
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                fotoPerfil:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Foto subida exitosamente
+
+  # ==================== SERVICIO ====================
+  /servicios:
+    get:
+      tags: [Servicio]
+      summary: Listar servicios disponibles
+      parameters:
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limite
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Lista de servicios
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          servicios:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/Servicio"
+                          meta:
+                            $ref: "#/components/schemas/PaginacionMeta"
+
+  /servicios/{id}:
+    get:
+      tags: [Servicio]
+      summary: Obtener detalle de un servicio
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Servicio obtenido
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Servicio"
+        "404":
+          description: Servicio no encontrado
+
+  # ==================== TRABAJADOR ====================
+  /trabajadores:
+    get:
+      tags: [Trabajador]
+      summary: Listar trabajadores disponibles
+      parameters:
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limite
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: Lista de trabajadores
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          trabajadores:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/Trabajador"
+                          meta:
+                            $ref: "#/components/schemas/PaginacionMeta"
+
+  /trabajadores/{id}:
+    get:
+      tags: [Trabajador]
+      summary: Obtener detalle de un trabajador
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Trabajador obtenido
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Trabajador"
+
+  /trabajadores/disponibles/lista:
+    get:
+      tags: [Trabajador]
+      summary: Listar trabajadores activos
+      parameters:
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limite
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Trabajadores activos listados
+
+  /trabajadores/buscar/{termino}:
+    get:
+      tags: [Trabajador]
+      summary: Buscar trabajadores por nombre
+      parameters:
+        - name: termino
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 50
+      responses:
+        "200":
+          description: Resultados de búsqueda
+
+  /trabajadores/calificacion/{minima}:
+    get:
+      tags: [Trabajador]
+      summary: Trabajadores con calificación mínima
+      parameters:
+        - name: minima
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+            maximum: 5
+      responses:
+        "200":
+          description: Trabajadores con calificación mínima
+
+  # ==================== TRABAJADOR STATS ====================
+  /trabajadores/ranking/mejores:
+    get:
+      tags: [Trabajador Stats]
+      summary: Obtener ranking de mejores trabajadores
+      parameters:
+        - name: limite
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Ranking de mejores trabajadores
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/EstadisticasTrabajador"
+
+  /trabajadores/{id}/estadisticas:
+    get:
+      tags: [Trabajador Stats]
+      summary: Obtener estadísticas de un trabajador
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: fechaInicio
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: fechaFin
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Estadísticas del trabajador
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/EstadisticasTrabajador"
+
+  /trabajadores/{id}/estadisticas/mensuales:
+    get:
+      tags: [Trabajador Stats]
+      summary: Obtener estadísticas mensuales de un trabajador
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: meses
+          in: query
+          schema:
+            type: integer
+            default: 12
+            minimum: 1
+            maximum: 24
+      responses:
+        "200":
+          description: Resumen mensual de estadísticas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ResumenMensual"
+
+  # ==================== RESERVACIÓN ====================
+  /reservaciones:
+    post:
+      tags: [Reservación]
+      summary: Crear nueva reservación
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - servicioId
+                - fechaHoraInicio
+                - direccionServicio
+              properties:
+                servicioId:
+                  type: string
+                  format: uuid
+                trabajadorId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                fechaHoraInicio:
+                  type: string
+                  format: date-time
+                direccionServicio:
+                  type: string
+                  minLength: 10
+                notasCliente:
+                  type: string
+                  maxLength: 500
+      responses:
+        "201":
+          description: Reservación creada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Reservacion"
+        "400":
+          description: Error de validación o negocio
+
+    get:
+      tags: [Reservación]
+      summary: Listar reservaciones del usuario
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [pending, confirmed, in_progress, completed, cancelled]
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limite
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Lista de reservaciones
+
+  /reservaciones/pendientes-calificacion:
+    get:
+      tags: [Reservación]
+      summary: Reservaciones pendientes de calificación
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Reservaciones sin calificar
+
+  /reservaciones/historial:
+    get:
+      tags: [Reservación]
+      summary: Historial de reservaciones completadas
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limite
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Historial de reservaciones
+
+  /reservaciones/estadisticas:
+    get:
+      tags: [Reservación]
+      summary: Estadísticas de reservaciones del usuario
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Estadísticas del usuario
+
+  /reservaciones/{id}:
+    get:
+      tags: [Reservación]
+      summary: Obtener detalle de una reservación
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detalle de la reservación
+
+    delete:
+      tags: [Reservación]
+      summary: Cancelar una reservación
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Reservación cancelada
+
+  # ==================== MÉTODO DE PAGO ====================
+  /metodos-pago:
+    post:
+      tags: [Método de Pago]
+      summary: Agregar nuevo método de pago
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tipo]
+              properties:
+                tipo:
+                  type: string
+                  enum: [tarjeta_credito, tarjeta_debito, pse, efectivo]
+                ultimos4Digitos:
+                  type: string
+                nombreTitular:
+                  type: string
+                fechaExpiracion:
+                  type: string
+                marca:
+                  type: string
+      responses:
+        "201":
+          description: Método de pago agregado
+
+    get:
+      tags: [Método de Pago]
+      summary: Listar métodos de pago del usuario
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Métodos de pago listados
+
+  /metodos-pago/{id}:
+    put:
+      tags: [Método de Pago]
+      summary: Actualizar método de pago
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Método actualizado
+
+    delete:
+      tags: [Método de Pago]
+      summary: Eliminar método de pago
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Método eliminado
+
+  /metodos-pago/{id}/marcar-principal:
+    put:
+      tags: [Método de Pago]
+      summary: Marcar método como principal
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Marcado como principal
+
+  # ==================== CALIFICACIÓN ====================
+  /calificaciones:
+    post:
+      tags: [Calificación]
+      summary: Crear calificación para una reservación
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reservacionId
+                - calificacionServicio
+              properties:
+                reservacionId:
+                  type: string
+                  format: uuid
+                calificacionServicio:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                calificacionTrabajador:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  nullable: true
+                comentarioServicio:
+                  type: string
+                comentarioTrabajador:
+                  type: string
+      responses:
+        "201":
+          description: Calificación creada
+
+  /calificaciones/{reservacionId}:
+    get:
+      tags: [Calificación]
+      summary: Obtener calificación de una reservación
+      parameters:
+        - name: reservacionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Calificación obtenida
+
+  # ==================== HISTORIAL ====================
+  /historial/estadisticas:
+    get:
+      tags: [Historial]
+      summary: Estadísticas del historial del usuario
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: fechaInicio
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: fechaFin
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Estadísticas obtenidas
+
+  /historial/estadisticas/mensuales:
+    get:
+      tags: [Historial]
+      summary: Estadísticas mensuales del usuario
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: meses
+          in: query
+          schema:
+            type: integer
+            default: 12
+            minimum: 1
+            maximum: 12
+      responses:
+        "200":
+          description: Estadísticas mensuales
+
+  /historial/filtrado:
+    get:
+      tags: [Historial]
+      summary: Historial filtrado
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [pending, confirmed, in_progress, completed, cancelled]
+        - name: servicioId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: trabajadorId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limite
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Historial filtrado
+
+  /historial/resumen:
+    get:
+      tags: [Historial]
+      summary: Resumen general del historial
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Resumen del historial
+
+  # ==================== NOTIFICACIÓN ====================
+  /notificaciones:
+    get:
+      tags: [Notificación]
+      summary: Listar notificaciones del usuario
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: leida
+          in: query
+          schema:
+            type: boolean
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limite
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Notificaciones listadas
+
+  /notificaciones/no-leidas:
+    get:
+      tags: [Notificación]
+      summary: Obtener notificaciones no leídas
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Notificaciones no leídas
+
+  /notificaciones/no-leidas/contar:
+    get:
+      tags: [Notificación]
+      summary: Contar notificaciones no leídas
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Cantidad de notificaciones no leídas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RespuestaExito"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          cantidad:
+                            type: integer
+
+  /notificaciones/{id}/leida:
+    put:
+      tags: [Notificación]
+      summary: Marcar notificación como leída
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notificación marcada como leída
+
+  /notificaciones/marcar-todos-leido:
+    put:
+      tags: [Notificación]
+      summary: Marcar todas las notificaciones como leídas
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Todas marcadas como leídas
+
+  /notificaciones/tipo/{tipo}:
+    get:
+      tags: [Notificación]
+      summary: Obtener notificaciones por tipo
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: tipo
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [reservacion, calificacion, promocion, sistema]
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Notificaciones filtradas por tipo
+
+  /notificaciones/{id}:
+    delete:
+      tags: [Notificación]
+      summary: Eliminar una notificación
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notificación eliminada
+
+  /notificaciones/leidas/limpiar:
+    delete:
+      tags: [Notificación]
+      summary: Eliminar todas las notificaciones leídas
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Notificaciones leídas eliminadas
