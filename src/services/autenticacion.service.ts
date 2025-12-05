@@ -183,6 +183,82 @@ export class AutenticacionService {
   }
 
   /**
+   * Registro inicial con sólo email y password.
+   * Crea el usuario con campos mínimos (vacíos o por defecto) y retorna los tokens.
+   */
+  async registrarUsuarioInicial(datos: { email: string; password: string }): Promise<RespuestaLogin> {
+    // Validar formato de email
+    const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!regexEmail.test(datos.email)) {
+      throw new ErrorValidacion('El formato del email no es válido');
+    }
+
+    // Validar longitud de contraseña
+    if (!datos.password || datos.password.length < 8) {
+      throw new ErrorValidacion('La contraseña debe tener al menos 8 caracteres');
+    }
+
+    // Verificar que el email no existe
+    const usuarioExistenteEmail = await this.usuarioRepository.obtenerUsuarioPorEmail(datos.email);
+    if (usuarioExistenteEmail) {
+      throw new ErrorNegocio('El email ya está registrado en el sistema. Intenta con otro email o inicia sesión.');
+    }
+
+    // Generar valores temporales únicos
+    const now = Date.now();
+    const uuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + now;
+    const datosTemporales = {
+      email: datos.email.toLowerCase().trim(),
+      passwordHash: await hashearPassword(datos.password),
+      nombreCompleto: 'Usuario Pendiente',
+      telefono: `+57TEMP${now}`,
+      tipoDocumento: 'CC',
+      numeroDocumento: `TEMP-${uuid}`,
+      ciudad: 'Pendiente',
+      direccion: 'Pendiente',
+      tipoVehiculo: 'carro',
+      placaVehiculo: `TMP-${uuid.slice(0,6).toUpperCase()}`,
+      cuidadoEspecial: 'ninguno',
+    };
+
+    // Crear usuario con datos temporales
+    const nuevoUsuario = await this.usuarioRepository.crearUsuario(datosTemporales as any);
+
+    // Generar tokens
+    const payloadToken: PayloadToken = {
+      id: nuevoUsuario.id,
+      email: nuevoUsuario.email,
+    };
+
+    const accessToken = generarAccessToken(payloadToken);
+    const refreshToken = generarRefreshToken(payloadToken);
+
+    // Guardar refresh token en DB
+    const fechaExpiracion = new Date();
+    fechaExpiracion.setDate(fechaExpiracion.getDate() + 7); // +7 días
+
+    await prisma.refreshToken.create({
+      data: {
+        usuarioId: nuevoUsuario.id,
+        token: refreshToken,
+        expiraEn: fechaExpiracion,
+      },
+    });
+
+    return {
+      usuario: {
+        id: nuevoUsuario.id,
+        email: nuevoUsuario.email,
+        nombreCompleto: nuevoUsuario.nombreCompleto,
+        telefono: nuevoUsuario.telefono,
+        fotoPerfil: nuevoUsuario.fotoPerfil,
+      },
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  /**
    * Inicia sesión de un usuario validando sus credenciales.
    *
    * Validaciones de negocio:

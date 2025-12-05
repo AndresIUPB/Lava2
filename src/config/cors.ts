@@ -1,7 +1,8 @@
 import { CorsOptions } from 'cors';
 
 const FRONTEND_URLS = [
-  'http://localhost:5173', // Desarrollo
+  'http://localhost:5173', // Frontend
+  'http://localhost:3000', // Backend (para pruebas internas)
   process.env.FRONTEND_URL // Producción
 ].filter(Boolean) as string[];
 

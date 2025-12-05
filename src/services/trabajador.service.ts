@@ -1,11 +1,7 @@
 import { Trabajador } from '@prisma/client';
 import { TrabajadorRepository } from '../repositories/trabajador.repository';
 import { BloqueoHorarioRepository } from '../repositories/bloqueoHorario.repository';
-import {
-  ErrorNoEncontrado,
-  ErrorValidacion,
-  ErrorNegocio,
-} from '../utils/errores';
+import { ErrorNoEncontrado, ErrorValidacion, ErrorNegocio } from '../utils/errores';
 
 /**
  * Servicio de lógica de negocio para Trabajador.

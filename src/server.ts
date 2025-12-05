@@ -14,6 +14,7 @@ import reservacionRoutes from './routes/reservacion.routes';
 import calificacionRoutes from './routes/calificacion.routes';
 import historialRoutes from './routes/historial.routes';
 import notificacionRoutes from './routes/notificacion.routes';
+import usuarioRoutes from './routes/usuario.routes';
 import './config/redis'; // Inicializar Redis
 
 // ============================================
@@ -86,6 +87,9 @@ app.use('/api/historial', historialRoutes);
 
 // Rutas de notificaciones (protegido)
 app.use('/api/notificaciones', notificacionRoutes);
+
+// Rutas de usuarios (completar perfil)
+app.use('/api/usuarios', usuarioRoutes);
 
 
 // ============================================

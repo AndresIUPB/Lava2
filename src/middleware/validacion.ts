@@ -114,6 +114,26 @@ export const validacionRegistro = [
 ];
 
 /**
+ * Validación mínima para registro inicial: sólo email + password
+ */
+export const validacionRegistroInicial = [
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage('El email es obligatorio')
+    .isEmail()
+    .withMessage('El email debe tener un formato válido'),
+
+  body('password')
+    .notEmpty()
+    .withMessage('La contraseña es obligatoria')
+    .isLength({ min: 8 })
+    .withMessage('La contraseña debe tener al menos 8 caracteres'),
+
+  validarResultado,
+];
+
+/**
  * Validaciones para el endpoint POST /auth/login
  * Valida email y contraseña para inicio de sesión
  */

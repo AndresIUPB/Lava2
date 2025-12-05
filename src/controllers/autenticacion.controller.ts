@@ -66,6 +66,35 @@ export class AutenticacionController {
   };
 
   /**
+   * Registra un nuevo usuario con datos mínimos (email y password).
+   *
+   * Endpoint: POST /auth/registro-inicial
+   * Status: 201 Created (exitoso)
+   *
+   * @param req - Request HTTP con datos del nuevo usuario en req.body
+   * @param res - Response HTTP
+   * @param next - Función para pasar al siguiente middleware (manejo de errores)
+   */
+  registrarInicial = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const datos = {
+        email: req.body.email,
+        password: req.body.password,
+      };
+
+      const usuario = await this.autenticacionService.registrarUsuarioInicial(datos);
+
+      respuestaExito(res, usuario, 'Usuario registrado exitosamente', 201);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * Inicia sesión de un usuario validando sus credenciales.
    *
    * Endpoint: POST /auth/login

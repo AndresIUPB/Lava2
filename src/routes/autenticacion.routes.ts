@@ -3,6 +3,7 @@ import { AutenticacionController } from '../controllers/autenticacion.controller
 import {
   validacionRegistro,
   validacionLogin,
+  validacionRegistroInicial,
   validacionRefresh,
   validacionLogout,
 } from '../middleware/validacion';
@@ -51,6 +52,33 @@ router.post(
 );
 
 /**
+ * POST /auth/registro-inicial
+ * Registrar nuevo usuario (registro inicial)
+ *
+ * Body requerido:
+ * {
+ *   "email": "usuario@email.com",
+ *   "password": "mipassword123"
+ * }
+ *
+ * Respuesta exitosa: 201 Created
+ * {
+ *   "success": true,
+ *   "mensaje": "Usuario registrado exitosamente",
+ *   "data": {
+ *     "usuario": { ... },
+ *     "accessToken": "...",
+ *     "refreshToken": "..."
+ *   }
+ * }
+ */
+router.post(
+  '/registro-inicial',
+  validacionRegistroInicial,
+  autenticacionController.registrarInicial
+);
+
+/**
  * POST /auth/login
  * Iniciar sesión
  *
@@ -93,6 +121,13 @@ router.post('/login', validacionLogin, autenticacionController.iniciarSesion);
  */
 router.post(
   '/refresh',
+  validacionRefresh,
+  autenticacionController.renovarToken
+);
+
+// Alias para compatibilidad con frontend
+router.post(
+  '/refresh-token',
   validacionRefresh,
   autenticacionController.renovarToken
 );

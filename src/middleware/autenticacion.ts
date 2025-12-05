@@ -30,8 +30,14 @@ export const verificarAutenticacion = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Extraer token de las cookies HTTP-Only
-    const token = req.cookies.accessToken;
+    // Extraer token de cookie o header Authorization
+    let token = req.cookies.accessToken;
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
 
     // Validar que el token fue proporcionado
     if (!token) {
